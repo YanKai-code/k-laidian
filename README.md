@@ -40,7 +40,7 @@ Mozilla 是第三方品牌识别研究示例，不是 Kai 或工作室的商业�
 
 ## 发布状态
 
-本次新版保存在 `redesign/k-laidian` 分支，未推送或替换已上线的 `gh-pages` 版本。确认新版后，再将三个 HTML、CSS、JS、`assets/` 及 `.nojekyll` 同步到发布分支。不要只发布首页，否则作品及案例链接会缺失。
+源码保存在 `main` 和 `redesign/k-laidian` 分支；GitHub Pages 从 `gh-pages` 发布。正式站点在根目录，`preview/` 保留独立预览。发布时同步三个 HTML、CSS、JS、`assets/` 及 `.nojekyll`，保留既有预览目录。所有版本均可从 Git 历史恢复。
 
 ## 星光动画
 

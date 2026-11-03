@@ -9,4 +9,4 @@ http.createServer(async (req, res) => {
   if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
   try { const body = await readFile(file); res.writeHead(200, {'Content-Type':types[path.extname(file)] || 'application/octet-stream'}); res.end(body); }
   catch { res.writeHead(404); res.end('Not found'); }
-}).listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('FORM is running on port ' + (process.env.PORT || 3000)));
+}).listen(Number(process.env.PORT || 3000), '0.0.0.0', () => console.log('K—LAIDIAN is running on port ' + (process.env.PORT || 3000)));

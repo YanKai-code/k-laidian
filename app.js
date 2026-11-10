@@ -45,37 +45,35 @@ document.querySelectorAll('[data-owner],[data-type],[data-category]').forEach(bu
 document.querySelectorAll('#reset-filters,[data-reset]').forEach(b=>b.addEventListener('click',resetFilters));
 const showcase=document.querySelector('#showcase-cards');
 if(showcase){
- const items=[projects[1],projects[3],projects[2],projects[4],projects[5],projects[6]];
+ const items=projects;
  const reduced=matchMedia('(prefers-reduced-motion: reduce)');
- const touchLayout=matchMedia('(max-width: 760px)');
- let active=0;
- showcase.innerHTML=items.map((p,i)=>`<a class="showcase-card${i===0?' is-active':''}" href="#project-${p.id}" data-case-id="${p.id}" style="--index:${i};--angle:${(i-2.5)*4}deg" aria-label="${i+1} / ${items.length}，查看${p.title}"><div class="showcase-card-face">${art(p)}<span class="card-sheen" aria-hidden="true"></span><span class="showcase-card-number">0${i+1}</span><div class="showcase-card-caption"><span>${p.category} / ${p.creator}</span><h3>${p.title}</h3><span class="showcase-open" aria-hidden="true">↗</span></div></div></a>`).join('');
- const cards=[...showcase.querySelectorAll('.showcase-card')];
- function select(index,scroll=false){
-  active=(index+cards.length)%cards.length;
-  cards.forEach((card,i)=>card.classList.toggle('is-active',i===active));
-  document.querySelector('#showcase-number').textContent=`0${active+1} / 0${cards.length}`;
-  document.querySelector('#showcase-title').textContent=items[active].title;
-  document.querySelector('.showcase-progress i').style.width=`${(active+1)/cards.length*100}%`;
-  if(scroll&&touchLayout.matches){const target=cards[active];showcase.scrollTo({left:target.offsetLeft-(showcase.clientWidth-target.offsetWidth)/2,behavior:reduced.matches?'instant':'smooth'});}
- }
- cards.forEach((card,i)=>{
-  card.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')select(i);});
-  card.addEventListener('focus',()=>{select(i,true);});
-  card.addEventListener('pointermove',e=>{
-   if(e.pointerType==='touch'||reduced.matches)return;
-   const r=card.getBoundingClientRect(),x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
-   card.style.setProperty('--pointer-x',`${x*100}%`);card.style.setProperty('--pointer-y',`${y*100}%`);
-   card.style.setProperty('--tilt-x',`${(y-.5)*-8}deg`);card.style.setProperty('--tilt-y',`${(x-.5)*10}deg`);
-  });
-  card.addEventListener('pointerleave',()=>{card.style.setProperty('--tilt-x','0deg');card.style.setProperty('--tilt-y','0deg');});
+ const region=document.querySelector('.card-showcase');
+ let active=0,paused=false,hovered=false,focused=false,touching=false,visible=false,frame=0,last=0,subpixel=0,resumeTimer;
+ const makeCard=(p,i,duplicate=false)=>`<a class="showcase-card" href="#project-${p.id}" data-case-id="${p.id}" data-card-index="${i}" ${duplicate?'tabindex="-1"':''} aria-label="${i+1} / ${items.length}，查看${p.title}"><div class="showcase-card-face">${art(p)}<span class="card-sheen" aria-hidden="true"></span><span class="showcase-card-number">${String(i+1).padStart(2,'0')}</span><div class="showcase-card-caption"><span>${p.category} / ${p.creator}</span><h3>${p.title}</h3><span class="showcase-open" aria-hidden="true">↗</span></div></div></a>`;
+ showcase.innerHTML=`<div class="showcase-belt"><div class="showcase-group">${items.map((p,i)=>makeCard(p,i)).join('')}</div><div class="showcase-group" aria-hidden="true">${items.map((p,i)=>makeCard(p,i,true)).join('')}</div></div>`;
+ const cards=[...showcase.querySelectorAll('.showcase-card')],originals=cards.slice(0,items.length);
+ const group=showcase.querySelector('.showcase-group');
+ function select(index){active=(index+items.length)%items.length;document.querySelector('#showcase-number').textContent=`${String(active+1).padStart(2,'0')} / ${String(items.length).padStart(2,'0')}`;document.querySelector('#showcase-title').textContent=items[active].title;document.querySelector('.showcase-progress i').style.width=`${(active+1)/items.length*100}%`;}
+ function animate(now){frame=0;if(paused||hovered||focused||touching||!visible||document.hidden||reduced.matches){last=0;return;}const dt=last?Math.min((now-last)/1000,.05):0;last=now;const width=group.offsetWidth;subpixel+=dt*38;const advance=Math.floor(subpixel);subpixel-=advance;showcase.scrollLeft+=advance;if(width&&showcase.scrollLeft>=width)showcase.scrollLeft-=width;frame=requestAnimationFrame(animate);}
+ function sync(){if(frame)cancelAnimationFrame(frame);frame=0;last=0;const toggle=document.querySelector('#showcase-pause');toggle.setAttribute('aria-pressed',String(paused));toggle.textContent=paused?'继续滚动 ▶':'暂停滚动 Ⅱ';if(!paused&&!hovered&&!focused&&!touching&&visible&&!document.hidden&&!reduced.matches)frame=requestAnimationFrame(animate);}
+ cards.forEach(card=>{
+  card.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;hovered=true;card.classList.add('is-active');select(Number(card.dataset.cardIndex));sync();});
+  card.addEventListener('pointerleave',()=>{hovered=false;card.classList.remove('is-active');card.style.setProperty('--tilt-x','0deg');card.style.setProperty('--tilt-y','0deg');sync();});
+  card.addEventListener('pointermove',e=>{if(e.pointerType==='touch'||reduced.matches)return;const r=card.getBoundingClientRect(),x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;card.style.setProperty('--pointer-x',`${x*100}%`);card.style.setProperty('--pointer-y',`${y*100}%`);card.style.setProperty('--tilt-x',`${(y-.5)*-5}deg`);card.style.setProperty('--tilt-y',`${(x-.5)*6}deg`);});
  });
- document.querySelector('#showcase-prev').addEventListener('click',()=>select(active-1,true));
- document.querySelector('#showcase-next').addEventListener('click',()=>select(active+1,true));
- let scrollFrame;
- showcase.addEventListener('scroll',()=>{if(!touchLayout.matches||scrollFrame)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=0;const middle=showcase.getBoundingClientRect().left+showcase.clientWidth/2;let closest=0,distance=Infinity;cards.forEach((card,i)=>{const r=card.getBoundingClientRect(),d=Math.abs(r.left+r.width/2-middle);if(d<distance){distance=d;closest=i;}});select(closest);});},{passive:true});
- showcase.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const index=event.key==='Home'?0:event.key==='End'?cards.length-1:active+(event.key==='ArrowRight'?1:-1);select(index,true);cards[active].focus({preventScroll:true});});
- select(0);
+ showcase.addEventListener('focusin',e=>{focused=true;const card=e.target.closest('.showcase-card');if(card)select(Number(card.dataset.cardIndex));sync();});
+ showcase.addEventListener('focusout',e=>{focused=showcase.contains(e.relatedTarget);sync();});
+ showcase.addEventListener('pointerdown',e=>{if(e.pointerType!=='touch')return;clearTimeout(resumeTimer);touching=true;sync();});
+ function releaseTouch(){if(!touching)return;clearTimeout(resumeTimer);resumeTimer=setTimeout(()=>{touching=false;sync();},2200);}
+ window.addEventListener('pointerup',releaseTouch);window.addEventListener('pointercancel',releaseTouch);
+ document.querySelector('#showcase-pause').addEventListener('click',()=>{paused=!paused;focused=showcase.contains(document.activeElement);sync();});
+ function step(direction){const stride=originals[1].offsetLeft-originals[0].offsetLeft;if(direction<0&&showcase.scrollLeft<stride)showcase.scrollLeft+=group.offsetWidth;showcase.scrollBy({left:stride*direction,behavior:reduced.matches?'instant':'smooth'});}
+ document.querySelector('#showcase-prev').addEventListener('click',()=>step(-1));document.querySelector('#showcase-next').addEventListener('click',()=>step(1));
+ // Controls receive focus while manual navigation is in use, so autoplay cannot fight the user.
+ region.addEventListener('focusin',()=>{focused=true;sync();});region.addEventListener('focusout',e=>{focused=region.contains(e.relatedTarget);sync();});
+ showcase.addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;e.preventDefault();select(e.key==='Home'?0:e.key==='End'?items.length-1:active+(e.key==='ArrowRight'?1:-1));originals[active].focus({preventScroll:true});showcase.scrollTo({left:originals[active].offsetLeft-25,behavior:reduced.matches?'instant':'smooth'});});
+ document.addEventListener('visibilitychange',sync);reduced.addEventListener('change',sync);new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;sync();}).observe(region);
+ select(0);sync();
 }
 function casePage(selectedId, container, embedded=false){
  const id=selectedId||new URLSearchParams(location.search).get('id')||'mozilla';

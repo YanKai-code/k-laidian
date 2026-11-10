@@ -43,12 +43,39 @@ document.querySelectorAll('[data-owner],[data-type],[data-category]').forEach(bu
  document.querySelectorAll(`[data-${key}]`).forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button));});renderProjects();
 }));
 document.querySelectorAll('#reset-filters,[data-reset]').forEach(b=>b.addEventListener('click',resetFilters));
-const track=document.querySelector('#reel-track');
-if(track){
- const items=[projects[1],projects[4],projects[3],projects[2],projects[5],projects[6]];
- const set=items.map(p=>`<a class="reel-item" href="${page==='home'?'#project-'+p.id:'case.html?id='+p.id}" ${page==='home'?'data-case-id="'+p.id+'"':''} aria-label="查看${p.title}">${art(p)}<span>${p.title}<i>↗</i></span></a>`).join('');
- track.innerHTML=`<div class="reel-group">${set}</div><div class="reel-group" aria-hidden="true">${set.replaceAll('class="reel-item"','class="reel-item" tabindex="-1"')}</div>`;
- const toggle=document.querySelector('.reel-toggle');toggle.addEventListener('click',()=>{const paused=track.classList.toggle('paused');toggle.setAttribute('aria-pressed',String(paused));toggle.setAttribute('aria-label',paused?'继续作品滚动':'暂停作品滚动');toggle.innerHTML=paused?'继续 <span>▶</span>':'暂停 <span>Ⅱ</span>';});
+const showcase=document.querySelector('#showcase-cards');
+if(showcase){
+ const items=[projects[1],projects[3],projects[2],projects[4],projects[5],projects[6]];
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ const touchLayout=matchMedia('(max-width: 760px)');
+ let active=0;
+ showcase.innerHTML=items.map((p,i)=>`<a class="showcase-card${i===0?' is-active':''}" href="#project-${p.id}" data-case-id="${p.id}" style="--index:${i};--angle:${(i-2.5)*4}deg" aria-label="${i+1} / ${items.length}，查看${p.title}"><div class="showcase-card-face">${art(p)}<span class="card-sheen" aria-hidden="true"></span><span class="showcase-card-number">0${i+1}</span><div class="showcase-card-caption"><span>${p.category} / ${p.creator}</span><h3>${p.title}</h3><span class="showcase-open" aria-hidden="true">↗</span></div></div></a>`).join('');
+ const cards=[...showcase.querySelectorAll('.showcase-card')];
+ function select(index,scroll=false){
+  active=(index+cards.length)%cards.length;
+  cards.forEach((card,i)=>card.classList.toggle('is-active',i===active));
+  document.querySelector('#showcase-number').textContent=`0${active+1} / 0${cards.length}`;
+  document.querySelector('#showcase-title').textContent=items[active].title;
+  document.querySelector('.showcase-progress i').style.width=`${(active+1)/cards.length*100}%`;
+  if(scroll&&touchLayout.matches){const target=cards[active];showcase.scrollTo({left:target.offsetLeft-(showcase.clientWidth-target.offsetWidth)/2,behavior:reduced.matches?'instant':'smooth'});}
+ }
+ cards.forEach((card,i)=>{
+  card.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')select(i);});
+  card.addEventListener('focus',()=>{select(i,true);});
+  card.addEventListener('pointermove',e=>{
+   if(e.pointerType==='touch'||reduced.matches)return;
+   const r=card.getBoundingClientRect(),x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+   card.style.setProperty('--pointer-x',`${x*100}%`);card.style.setProperty('--pointer-y',`${y*100}%`);
+   card.style.setProperty('--tilt-x',`${(y-.5)*-8}deg`);card.style.setProperty('--tilt-y',`${(x-.5)*10}deg`);
+  });
+  card.addEventListener('pointerleave',()=>{card.style.setProperty('--tilt-x','0deg');card.style.setProperty('--tilt-y','0deg');});
+ });
+ document.querySelector('#showcase-prev').addEventListener('click',()=>select(active-1,true));
+ document.querySelector('#showcase-next').addEventListener('click',()=>select(active+1,true));
+ let scrollFrame;
+ showcase.addEventListener('scroll',()=>{if(!touchLayout.matches||scrollFrame)return;scrollFrame=requestAnimationFrame(()=>{scrollFrame=0;const middle=showcase.getBoundingClientRect().left+showcase.clientWidth/2;let closest=0,distance=Infinity;cards.forEach((card,i)=>{const r=card.getBoundingClientRect(),d=Math.abs(r.left+r.width/2-middle);if(d<distance){distance=d;closest=i;}});select(closest);});},{passive:true});
+ showcase.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const index=event.key==='Home'?0:event.key==='End'?cards.length-1:active+(event.key==='ArrowRight'?1:-1);select(index,true);cards[active].focus({preventScroll:true});});
+ select(0);
 }
 function casePage(selectedId, container, embedded=false){
  const id=selectedId||new URLSearchParams(location.search).get('id')||'mozilla';
